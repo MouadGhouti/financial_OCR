@@ -46,6 +46,9 @@ def main() -> None:
         "This demo parses it with Landing AI's ADE API, "
         "overlays bounding boxes, and shows extracted fields."
     )
+    api_key = st.text_input("Enter your Landing AI API key", type="password")
+    if not api_key:
+        st.warning("No API key provided, using default key")
 
     uploaded_file = st.file_uploader(
         "Upload a document",
@@ -56,9 +59,6 @@ def main() -> None:
         st.info("Upload a PNG, JPG, or PDF to get started.")
         return
 
-    api_key = st.text_input("Enter your Landing AI API key", type="password")
-    if not api_key:
-        st.warning("No API key provided, using default key")
     col_preview, col_results = st.columns([1.1, 1.3])
 
     with col_preview:
