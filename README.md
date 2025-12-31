@@ -35,9 +35,3 @@ python src/main.py
 source .venv/bin/activate
 streamlit run src/app.py
 ```
-
-Notes:
-
-- PDF support is first-page only (for this PoC).
-- `pdf2image` requires `poppler` to be installed on your system (e.g. `brew install poppler` on macOS).
-
