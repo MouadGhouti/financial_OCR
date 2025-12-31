@@ -1,0 +1,6 @@
+streamlit
+python-dotenv
+Pillow
+pandas
+pdf2image
+landingai-ade
