@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from typing import Iterable
+from warnings import deprecated
 
-import fitz
-from PIL import Image, ImageDraw, ImageFont
+import pypdfium2 as pdfium
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 
 @dataclass
@@ -22,7 +23,39 @@ def load_image_from_upload(uploaded_file) -> Image.Image:
     return Image.open(uploaded_file).convert("RGB")
 
 
-def pdf_to_image_first_page(uploaded_file) -> Image.Image:
+def pdf_to_image_first_page(uploaded_file, scale=300/72, sharpen=True):
+    """
+    Convert PDF or image file to list of PIL Images.
+    
+    Args:
+        uploaded_file: File object with .read() method or file path string
+        scale: Rendering scale (300/72 = 300 DPI for OCR)
+        sharpen: Apply sharpening filter for better OCR
+    
+    Returns:
+        List of PIL Image objects
+    """
+    # Handle both file objects and paths
+    if hasattr(uploaded_file, 'read'):
+        file_bytes = uploaded_file.read()
+        pdf = pdfium.PdfDocument(file_bytes)
+    else:
+        pdf = pdfium.PdfDocument(uploaded_file)
+    
+    images = []
+    for page in pdf:
+        img = page.render(scale=scale).to_pil()
+        
+        if sharpen:
+            img = img.filter(ImageFilter.SHARPEN)
+        
+        images.append(img)
+    
+    pdf.close()
+    return images
+
+@deprecated("Use pdf_to_image_first_page instead")
+def pdf_to_image_first_page_old(uploaded_file) -> Image.Image:
     """
     Convert the first page of an uploaded PDF to a PIL Image.
 
