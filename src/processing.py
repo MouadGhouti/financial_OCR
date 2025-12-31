@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Iterable
 
-from pdf2image import convert_from_bytes
+import fitz
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -29,7 +29,12 @@ def pdf_to_image_first_page(uploaded_file) -> Image.Image:
     Uses pdf2image.convert_from_bytes, so system must have poppler installed.
     """
     file_bytes = uploaded_file.read()
-    images = convert_from_bytes(file_bytes, fmt="png")
+    doc = fitz.open(stream=file_bytes, filetype="pdf")
+    images = []
+    for page in doc:
+        pix = page.get_pixmap()
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        images.append(img)
     if not images:
         raise ValueError("No pages found in PDF")
     return images
