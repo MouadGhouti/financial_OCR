@@ -59,22 +59,19 @@ def main() -> None:
         st.info("Upload a PNG, JPG, or PDF to get started.")
         return
 
-    col_preview, col_results = st.columns([1.1, 1.3])
-
-    with col_preview:
-        st.subheader("Document Preview")
-        try:
-            image = _preview_image(uploaded_file)
-            if isinstance(image, list):
-                images = image
-                for i, image in enumerate(images):
-                    st.image(image, use_container_width=True, caption=f"Page {i+1}")
-            else:
-                st.image(image, use_container_width=True)
-                images = [image]
-        except Exception as exc:
-            st.error(f"Could not render preview: {exc}")
-            return
+    # Load the document pages (but keep the visual layout for results per page
+    # further down).
+    try:
+        image_or_images = _preview_image(uploaded_file)
+        if isinstance(image_or_images, list):
+            images = image_or_images
+        else:
+            images = [image_or_images]
+        # Use the first page as reference for box extraction.
+        image = images[0]
+    except Exception as exc:
+        st.error(f"Could not render preview: {exc}")
+        return
 
     analyze_clicked = st.button("Analyze document with LandingAI")
     if not analyze_clicked:
@@ -105,31 +102,40 @@ def main() -> None:
 
     boxes = extract_bounding_boxes(parse_result, image)
 
-    with col_preview:
-        if boxes:
-            for page_index, image in enumerate(images):
-                st.subheader(f"Detected Regions (Page {page_index+1})")
-                page_boxes = [box for box in boxes if box.page_index == page_index]
-                annotated = draw_bounding_boxes(image, page_boxes)
+    # Aggregate markdown per page.
+    pages = {}
+    for chunk in parse_result.chunks:
+        page_index = int(chunk.grounding.page)
+        if page_index not in pages:
+            pages[page_index] = chunk.markdown
+        else:
+            pages[page_index] += "\n\n" + chunk.markdown
+
+    # For each page, show a row with the annotated image on the left and the
+    # corresponding markdown on the right.
+    for page_index, page_image in enumerate(images):
+        col_img, col_md = st.columns([1.1, 1.3])
+
+        with col_img:
+            st.subheader(f"Page {page_index+1}")
+            page_boxes = [box for box in boxes if box.page_index == page_index]
+            if page_boxes:
+                annotated = draw_bounding_boxes(page_image, page_boxes)
                 st.image(
                     annotated,
                     caption=f"Page {page_index+1} with bounding boxes",
                     use_container_width=True,
                 )
-        else:
-            st.info("No bounding boxes found for any page.")
-
-    with col_results:
-        pages = {}
-        for chunk in parse_result.chunks:
-            page_index = int(chunk.grounding.page)
-            if page_index not in pages:
-                pages[page_index] = chunk.markdown
             else:
-                pages[page_index] += "\n\n" + chunk.markdown
-        for page_index, markdown in pages.items():
-            with st.expander(f"Page {page_index+1} markdown (truncated)", expanded=False):
+                st.info("No bounding boxes found for this page.")
+
+        with col_md:
+            markdown = pages.get(page_index)
+            st.subheader(f"Page {page_index+1}")
+            if markdown:
                 st.markdown(markdown, unsafe_allow_html=True)
+            else:
+                st.info("No markdown found for this page.")
 
 
 if __name__ == "__main__":
